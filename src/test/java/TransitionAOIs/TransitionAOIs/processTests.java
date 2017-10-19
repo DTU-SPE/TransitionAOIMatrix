@@ -48,7 +48,7 @@ public class processTests extends TestCase {
 		
 		HashMap<String,ArrayList<ArrayList<String>>> dataentries = process.readEntries(filename); /// 1st end
 		ArrayList<String> header = process.readHeader(filename);
-		HashMap<String, HashMap<String, Integer>> transitionsmap = process.generateTransitionMap(header,dataentries);
+		HashMap<String, HashMap<String, Integer>> transitionsmap = process.generateTransitionMap(header,dataentries,leftoffset);
 			
 		 	
 			Iterator cases = transitionsmap.entrySet().iterator();
@@ -137,7 +137,7 @@ public class processTests extends TestCase {
 		 int transitionstartIndex = process.getAOIindex(transitionstartTest, header) - leftoffset;
 		 int transitionendIndex = process.getAOIindex(transitionendTest, header) -leftoffset ;
 
-		HashMap<String, HashMap<String, Integer>> transitionsmap = process.generateTransitionMap(header,dataentries);
+		HashMap<String, HashMap<String, Integer>> transitionsmap = process.generateTransitionMap(header,dataentries,leftoffset);
 		
 		 	
 		Iterator cases = transitionsmap.entrySet().iterator();
@@ -191,6 +191,7 @@ public class processTests extends TestCase {
 
 		String filename = "testfile/1.1test.tsv";
 		String testParticipantExist = "P01";
+		int leftoffset = 2 ;
 		
 		String transitionnameTest = "AOI[Q1]Hit-AOI[Q2]Hit";
 		Integer transitioncountTest = 5 ;
@@ -203,7 +204,7 @@ public class processTests extends TestCase {
 
 		boolean transitionnamefound = false ;
 
-		HashMap<String, HashMap<String, Integer>>  transitionMap = process.generateTransitionMap(header,Cases);
+		HashMap<String, HashMap<String, Integer>>  transitionMap = process.generateTransitionMap(header,Cases,leftoffset);
 		
 		Iterator transitionspercase = transitionMap.entrySet().iterator();
 		
@@ -249,6 +250,7 @@ public class processTests extends TestCase {
 		String testParticipantExist = "P01";
 		int countenabled = 0;
 		int countdisabled = 0;
+		int leftoffset = 2;
 
 
 		ArrayList<String> header = process.readHeader(filename);
@@ -271,7 +273,7 @@ public class processTests extends TestCase {
 					if (e1.get(1).equals(event1_id) && e2.get(1).equals(event2_id)) {
 
 						ArrayList<ArrayList<String>> foundTransition = process.findTransitionsFromStatesChanges(e1, e2,
-								header);
+								header,leftoffset);
 
 						int disabled = foundTransition.get(0).size();
 						int enabled = foundTransition.get(1).size();

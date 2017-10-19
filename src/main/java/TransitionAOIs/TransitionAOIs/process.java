@@ -14,6 +14,7 @@ import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -22,6 +23,9 @@ import java.util.TreeMap;
 
 public class process {
 
+	static String delimiter = ";";
+	
+	
 	public static void main(String[] args) throws IOException {
 		// TODO Auto-generated method stub
 
@@ -29,14 +33,18 @@ public class process {
 		 * for this version only the file should have the following format:
 		 * ParticipantName	FixationIndex AOI1 AOI2 ....
 		 * if your file has different format, you can use the parameter offset to specify the offset that should not be considered while creating the data matrix
-		 * in this example since we have only ParticipantName andFixationIndex that should not be included in the data matrix, the offset is 2
+		 * in this example since we have only ParticipantName, FixationIndex, and window that should not be included in the data matrix, the offset is 2
+		 *
+		 * Update: 
+		 *  the function areAllcells0 is used in order to ignore the events where all AOI's have 0  (except the ones already removed by the offset like the "window" AOI in our case)
+		 *
 		 */
 		
-		String filename = "4.1.tsv";
-		int offset = 2;
+		String filename = "1.2T2.csv";
+		int offset = 3;
 		
 		// enter the columns to show in the data matrix
-		String[] showColumns = new String[] {"AOI[title]Hit","AOI[graph]Hit","AOI[legend]Hit","AOI[Q1]Hit","AOI[Q2]Hit","AOI[Q3]Hit","AOI[Q4]Hit"};
+		String[] showColumns = new String[] {"AOI[title]Hit","AOI[legend]Hit","AOI[Q1]Hit","AOI[Q2]Hit","AOI[Q3]Hit","AOI[Q4]Hit"};
 	
 		
 		ArrayList<String> headerdata = readHeader(filename);
@@ -159,10 +167,10 @@ public class process {
 
 		HashMap<String, ArrayList<ArrayList<String>>> dataentries = readEntries(filename);
 
-		HashMap<String, HashMap<String, Integer>> transitionsmap = generateTransitionMap(headerdata, dataentries);
+		HashMap<String, HashMap<String, Integer>> transitionsmap = generateTransitionMap(headerdata, dataentries,leftoffset);
 
 		// init casesMatrix (matrix for all participants)
-		Integer[][] casesMatrix = new Integer[headerdata.size() - 2][headerdata.size() - 2];
+		Integer[][] casesMatrix = new Integer[headerdata.size() - leftoffset][headerdata.size() - leftoffset];
 		for (int i = 0; i < headerdata.size() - leftoffset; i++) {
 			for (int j = 0; j < headerdata.size() - leftoffset; j++) {
 				casesMatrix[i][j] = 0;
@@ -204,7 +212,7 @@ public class process {
 	}
 	
 
-	public static HashMap<String, HashMap<String, Integer>> generateTransitionMap(ArrayList<String> headerdata, HashMap<String,ArrayList<ArrayList<String>>> cases){
+	public static HashMap<String, HashMap<String, Integer>> generateTransitionMap(ArrayList<String> headerdata, HashMap<String,ArrayList<ArrayList<String>>> cases, int leftoffset){
 		
 		HashMap<String, HashMap<String, Integer>> transitionsmap = new HashMap<String, HashMap<String, Integer>>();
 		
@@ -222,8 +230,27 @@ public class process {
 	    	
 		for(int i=0 ; i<caseevents.size()-1;i++){
 			
+			int starteventindex = i ;
 			
-			ArrayList<ArrayList<String>> startsends = findTransitionsFromStatesChanges(caseevents.get(i), caseevents.get(i+1),headerdata);
+			
+			
+			while(starteventindex<caseevents.size()-1 && areAllcells0(caseevents.get(starteventindex),leftoffset)){
+				starteventindex++;
+			}
+			
+			if(starteventindex>=caseevents.size()-1){
+				// reached the end
+				break ;
+			}
+			int endeventindex = starteventindex+1 ;
+			
+			while(endeventindex<caseevents.size()-1 && areAllcells0(caseevents.get(endeventindex),leftoffset)){
+				endeventindex++;
+			}
+			
+			i = starteventindex ;
+			
+			ArrayList<ArrayList<String>> startsends = findTransitionsFromStatesChanges(caseevents.get(starteventindex), caseevents.get(endeventindex),headerdata,leftoffset);
 			
 			
 			// add each transition to the hashmap if does not exists yet, or increment the value			
@@ -288,15 +315,29 @@ public class process {
 		
 	}
 	
-	public static ArrayList<ArrayList<String>> findTransitionsFromStatesChanges(ArrayList<String> e1, ArrayList<String> e2,ArrayList<String> headerdata){
-		// skip first 2 entries 
+	
+	
+	public static boolean areAllcells0(ArrayList<String> event, int offset){
+		
+		for(int i=offset ; i<event.size(); i++){
+			if(!event.get(i).equals("0")){
+				return false ;
+			}
+		}
+		return true ;
+	}
+	
+	public static ArrayList<ArrayList<String>> findTransitionsFromStatesChanges(ArrayList<String> e1, ArrayList<String> e2,ArrayList<String> headerdata, int leftoffset){
+	
+		System.out.println("Case: "+e1.get(0)+"--between "+e1.get(1)+", and "+e2.get(1));
+		
 		
 		ArrayList<ArrayList<String>> changed = new ArrayList<ArrayList<String>>();
 		ArrayList<String> disabled = new ArrayList<String>();
 		ArrayList<String> enabled = new ArrayList<String>();
 		
 		
-		for(int i=2; i<e1.size(); i++){
+		for(int i=leftoffset; i<e1.size(); i++){
 			if(!e1.get(i).equals(e2.get(i))){
 			
 			
@@ -316,6 +357,18 @@ public class process {
 		changed.add(disabled);
 		changed.add(enabled);
 		
+		System.out.println("disabled");
+		String[] disabledA = new String[disabled.size()];
+		disabledA = disabled.toArray(disabledA);
+		Arrays.stream(disabledA).forEach(num -> System.out.print(num+" "));
+		System.out.println("");
+		System.out.println("enabled");
+		String[] enabledA = new String[enabled.size()];
+		enabledA = enabled.toArray(enabledA);
+		Arrays.stream(enabledA).forEach(num -> System.out.print(num+" "));
+		System.out.println("");
+		
+		
 		return changed ;
 	}
 	
@@ -329,7 +382,7 @@ public class process {
 			BufferedReader bufferedReader = new BufferedReader(fileReader);
 			String line =  bufferedReader.readLine() ;
 			
-			StringTokenizer st = new StringTokenizer(line,"	");
+			StringTokenizer st = new StringTokenizer(line,delimiter);
 			
 			while(st.hasMoreTokens()){
 				headerdata.add(st.nextToken());
@@ -365,7 +418,7 @@ public class process {
 				else {
 					
 					ArrayList<String> entry = new ArrayList<String>();
-					StringTokenizer st = new StringTokenizer(line,"	");
+					StringTokenizer st = new StringTokenizer(line,delimiter);
 					
 					while(st.hasMoreTokens()){
 						 entry.add(st.nextToken());
