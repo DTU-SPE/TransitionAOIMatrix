@@ -23,7 +23,7 @@ import java.util.TreeMap;
 
 public class process {
 
-	static String delimiter = ";";
+	static String delimiter = "	";
 	
 	
 	public static void main(String[] args) throws IOException {
@@ -40,27 +40,34 @@ public class process {
 		 *
 		 */
 		
-		String filename = "1.2T2.csv";
-		int offset = 3;
+		String filename = "1.2.Tsv";
+		int leftoffset = 1;
 		
 		// enter the columns to show in the data matrix
 		String[] showColumns = new String[] {"AOI[title]Hit","AOI[legend]Hit","AOI[Q1]Hit","AOI[Q2]Hit","AOI[Q3]Hit","AOI[Q4]Hit"};
-	
+	    String ParticipantColumn = "ParticipantName";
+	    
+	    ArrayList<String> headerdata = process.readHeader(filename,showColumns,ParticipantColumn,false);
+	    ArrayList<String> headerdataindexes = process.readHeader(filename,showColumns,ParticipantColumn,true);
+	   
 		
-		ArrayList<String> headerdata = readHeader(filename);
-		
+	    
 		ArrayList<Integer> selectedColumnsIndexes = getcolumnsSetsIndexes(showColumns,headerdata);
 		
-		processfile(filename,headerdata,selectedColumnsIndexes,offset);
+	
+		
+		processfile(filename,headerdata,selectedColumnsIndexes,leftoffset,headerdataindexes,showColumns,ParticipantColumn);
 	
 	}
 	
 	public static ArrayList<Integer> getcolumnsSetsIndexes(String[] selectedColumnsSets,ArrayList<String>  headerdata){
 		
+		
 		ArrayList<Integer> selectedColumnsIndexes = new ArrayList<Integer>();
 		
 		for(String column :  selectedColumnsSets){
-			selectedColumnsIndexes.add(getAOIindex(column,headerdata ));
+		
+			selectedColumnsIndexes.add(getColumnIindex(column,headerdata ));
 		}
 		
 		return selectedColumnsIndexes;
@@ -68,10 +75,11 @@ public class process {
 
 	public static Integer[][] genreateDataMatrixForParticipant(HashMap<String, Integer> transitionsmapForParticipant,ArrayList<String>  headerdata,int leftoffset){
 	    
+		
 	    
 		   Iterator transitionsit = transitionsmapForParticipant.entrySet().iterator();
 		
-			  Integer[][] dataMatrix = new Integer[headerdata.size()-2][headerdata.size()-2];
+			  Integer[][] dataMatrix = new Integer[headerdata.size()-leftoffset][headerdata.size()-leftoffset];
 				for(int i=0 ; i<headerdata.size()-leftoffset ; i++){
 					for(int j=0; j<headerdata.size()-leftoffset; j++){
 						dataMatrix[i][j] = 0;
@@ -89,7 +97,7 @@ public class process {
 						ArrayList<Integer> aoisIndexes = new ArrayList<Integer>();
 						
 						while(st.hasMoreTokens()){
-							aoisIndexes.add(getAOIindex(st.nextToken(),headerdata));
+							aoisIndexes.add(getColumnIindex(st.nextToken(),headerdata));
 						}
 						
 						dataMatrix[aoisIndexes.get(0)-leftoffset][aoisIndexes.get(1)-leftoffset] = count ;
@@ -104,8 +112,12 @@ public class process {
    public static int CalculateSum(Integer[][] dataMatrix, ArrayList<String>  headerdata,ArrayList<Integer>  selectedColumnsIndexes, int leftoffset){
 	   int sum = 0 ;
   
+	 
+	   
 		for(int i=0; i<selectedColumnsIndexes.size(); i++){
 			for(int j=0 ; j<selectedColumnsIndexes.size(); j++){
+				
+				
 				sum += dataMatrix[selectedColumnsIndexes.get(i)-leftoffset][selectedColumnsIndexes.get(j)-leftoffset];
 			}
 			}
@@ -130,6 +142,7 @@ public class process {
 		Map<Integer, Object[]> empinfo = new TreeMap<Integer, Object[]>();
 		int countkey = 1;
 
+	
 		int sum = CalculateSum(dataMatrix, headerdata, selectedColumnsIndexes, leftoffset);
 
 		// first line:
@@ -163,9 +176,11 @@ public class process {
 	}
 	
 	public static void processfile(String filename, ArrayList<String> headerdata,
-			ArrayList<Integer> selectedColumnsIndexes, int leftoffset) throws IOException {
+			ArrayList<Integer> selectedColumnsIndexes, int leftoffset, ArrayList<String> headerdataindexes,String[] showColumns, String ParticipantColumn ) throws IOException {
 
-		HashMap<String, ArrayList<ArrayList<String>>> dataentries = readEntries(filename);
+		  
+		
+		HashMap<String, ArrayList<ArrayList<String>>> dataentries = readEntries(filename,showColumns,ParticipantColumn,headerdataindexes);
 
 		HashMap<String, HashMap<String, Integer>> transitionsmap = generateTransitionMap(headerdata, dataentries,leftoffset);
 
@@ -192,13 +207,16 @@ public class process {
 			writeDataMatrix(participant, wb, dataMatrix, headerdata, selectedColumnsIndexes, leftoffset);
 		}
 
+		
 		writeDataMatrix("All", wb, casesMatrix, headerdata, selectedColumnsIndexes, leftoffset);
 
 	}
 	
 	
-	static int getAOIindex(String AOI,ArrayList<String> headerdata ){
+	static int getColumnIindex(String AOI,ArrayList<String> headerdata ){
 		int index = 0 ;
+		
+	
 		
 		while(index<headerdata.size()){
 			
@@ -281,27 +299,6 @@ public class process {
 						casetransitions.put(transition, 1);
 					}
 					
-//					if(caseId.equals("P04")){
-//						  Iterator it2 = casetransitions.entrySet().iterator();
-//						    while (it2.hasNext()) {
-//						    	HashMap.Entry pair2 = (HashMap.Entry)it2.next();
-//						    	String trans = (String) pair2.getKey();
-//						    	Integer countt = (Integer) pair2.getValue();
-//						    	
-//						    	StringTokenizer st = new StringTokenizer(trans,"-");
-//								int count2 = 0 ;
-//								while(st.hasMoreTokens()){
-//									 if(st.nextToken().contains("Q")){
-//										 count2++;
-//									 }
-//								}
-//						    	
-//						    	if(count2==2){
-//						    		System.out.println(trans.replace("AOI[", "").replace("]Hit","")+" : "+countt);
-//						    	}
-//						    	
-//						    }
-//					}
 					
 					transitionsmap.put(caseId, casetransitions);
 					
@@ -329,7 +326,7 @@ public class process {
 	
 	public static ArrayList<ArrayList<String>> findTransitionsFromStatesChanges(ArrayList<String> e1, ArrayList<String> e2,ArrayList<String> headerdata, int leftoffset){
 	
-		System.out.println("Case: "+e1.get(0)+"--between "+e1.get(1)+", and "+e2.get(1));
+		//System.out.println("Case: "+e1.get(0)+"--between "+e1.get(1)+", and "+e2.get(1));
 		
 		
 		ArrayList<ArrayList<String>> changed = new ArrayList<ArrayList<String>>();
@@ -356,26 +353,17 @@ public class process {
 		
 		changed.add(disabled);
 		changed.add(enabled);
-		
-		System.out.println("disabled");
-		String[] disabledA = new String[disabled.size()];
-		disabledA = disabled.toArray(disabledA);
-		Arrays.stream(disabledA).forEach(num -> System.out.print(num+" "));
-		System.out.println("");
-		System.out.println("enabled");
-		String[] enabledA = new String[enabled.size()];
-		enabledA = enabled.toArray(enabledA);
-		Arrays.stream(enabledA).forEach(num -> System.out.print(num+" "));
-		System.out.println("");
-		
+
 		
 		return changed ;
 	}
 	
 
 	
-	public static ArrayList<String> readHeader(String filename) throws IOException{
+	public static ArrayList<String> readHeader(String filename,String[] showColumns, String participantColumn,boolean index) throws IOException{
 		ArrayList<String> headerdata = new ArrayList<String>();
+		
+		ArrayList<String> selectedheader = new ArrayList<String>();
 	
 			File file = new File(filename);
 			FileReader fileReader = new FileReader(file);
@@ -384,24 +372,55 @@ public class process {
 			
 			StringTokenizer st = new StringTokenizer(line,delimiter);
 			
+			int participantnameindex = -1 ;
+			
+			
 			while(st.hasMoreTokens()){
 				headerdata.add(st.nextToken());
 			}
 			
+		
+			
+			ArrayList<String> givenColumns = new ArrayList<String>(Arrays.asList(showColumns));
+		
+		
+			
+			
+			
+			if(index){
+				selectedheader.add(0+"");
+			}
+			else {
+				selectedheader.add(participantColumn);
+			}
+		
+			
+			for(int i=0; i<headerdata.size(); i++){
+				
+				if(givenColumns.contains(headerdata.get(i))){
+					if(index){
+						selectedheader.add(i+"");
+					}
+					else {
+						selectedheader.add(headerdata.get(i));
+					}
+					
+				}
+				
+			}
 
 			fileReader.close();
 			
 			
 		
 		
-		return headerdata ;
+		return selectedheader ;
 	}
 	
 	
-	public static HashMap<String,ArrayList<ArrayList<String>>> readEntries(String filename) throws IOException{
+	public static HashMap<String,ArrayList<ArrayList<String>>> readEntries(String filename,String[] showColumns, String participantColumn,ArrayList<String> header) throws IOException{
 		HashMap<String,ArrayList<ArrayList<String>>> cases = new HashMap<String,ArrayList<ArrayList<String>>>();
-		
-		
+
 			File file = new File(filename);
 			FileReader fileReader = new FileReader(file);
 			BufferedReader bufferedReader = new BufferedReader(fileReader);
@@ -410,7 +429,7 @@ public class process {
 			int count = 0 ;
 			while ((line = bufferedReader.readLine()) != null) {
 			
-				/// skip first entry
+				/// skip first line
 				if(count == 0 ) {
 					count++;
 				}
@@ -420,23 +439,41 @@ public class process {
 					ArrayList<String> entry = new ArrayList<String>();
 					StringTokenizer st = new StringTokenizer(line,delimiter);
 					
-					while(st.hasMoreTokens()){
-						 entry.add(st.nextToken());
-					}
 					
+					int k = 0 ; 
+					while(st.hasMoreTokens()){
+		
+						if(k==0){
+							entry.add(st.nextToken()); // we assume that the case id is always index 0
+						}	
+						else if(header.contains(k+"")){
+							entry.add(st.nextToken());
+						}
+						else {
+							st.nextToken();
+						}
+						
+						k++;
+					}
 					
 					String caseId = entry.get(0);
 					
+			
 					if(cases.containsKey(caseId)){
+					
 						ArrayList<ArrayList<String>> caseevents = cases.get(caseId);
 						caseevents.add(entry);
 						cases.put(caseId, caseevents);
 					}
 					else {
+					
 						ArrayList<ArrayList<String>> events = new ArrayList<ArrayList<String>>();
 						events.add(entry);
 						cases.put(caseId, events);
 					}
+					
+					
+					
 					
 
 				}

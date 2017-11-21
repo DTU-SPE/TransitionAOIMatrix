@@ -4,6 +4,7 @@ import junit.framework.TestCase;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
 
@@ -16,16 +17,18 @@ public class processTests extends TestCase {
 
 	public void testGetcolumnsSetsIndexes() throws IOException {
 		
-		String filename = "testfile/1.1test.tsv";
-		String[] showColumns = new String[] {"AOI[window]Hit","AOI[title]Hit","AOI[graph]Hit","AOI[legend]Hit","AOI[Q1]Hit","AOI[Q2]Hit","AOI[Q3]Hit"};
+		String filename = "1.2.tsv";
+		String[] showColumns = new String[] {"AOI[title]Hit","AOI[legend]Hit","AOI[Q1]Hit","AOI[Q2]Hit","AOI[Q3]Hit","AOI[Q4]Hit"};
+	    String ParticipantColumn = "ParticipantName";
+	    
 		
-		Integer startcolIndexTest = 2;
+		Integer startcolIndexTest = 1;
 		Integer endcolIndexTest = 6;
 
 		
 		System.out.println("test testGetcolumnsSetsIndexes()");
   
-		 ArrayList<String> header = process.readHeader(filename);
+		ArrayList<String> header = process.readHeader(filename,showColumns,ParticipantColumn,false);
 	
 		ArrayList<Integer> selectedColumnsIndexes = process.getcolumnsSetsIndexes(showColumns ,header);
 	
@@ -42,12 +45,18 @@ public class processTests extends TestCase {
 		
 		System.out.println("test testGenreateDataMatrixForParticipant()");
 		
-		String filename = "3.2.tsv";
-		int leftoffset = 2;
+		String filename = "1.2.tsv";
+		String[] showColumns = new String[] {"AOI[title]Hit","AOI[legend]Hit","AOI[Q1]Hit","AOI[Q2]Hit","AOI[Q3]Hit","AOI[Q4]Hit"};
+	    String ParticipantColumn = "ParticipantName";
+	    
+	
+		int leftoffset = 1;
 		String participantNameTest = "P01";
 		
-		HashMap<String,ArrayList<ArrayList<String>>> dataentries = process.readEntries(filename); /// 1st end
-		ArrayList<String> header = process.readHeader(filename);
+		
+		ArrayList<String> headerindexes = process.readHeader(filename,showColumns,ParticipantColumn,true);
+		HashMap<String,ArrayList<ArrayList<String>>> dataentries =  process.readEntries(filename,showColumns,ParticipantColumn,headerindexes); /// 1st end
+		ArrayList<String> header = process.readHeader(filename,showColumns,ParticipantColumn,false);
 		HashMap<String, HashMap<String, Integer>> transitionsmap = process.generateTransitionMap(header,dataentries,leftoffset);
 			
 		 	
@@ -68,16 +77,18 @@ public class processTests extends TestCase {
 			    		/// get participant case
 			    	ArrayList<ArrayList<String>> events = dataentries.get(participant);
 			    	
+			    	
 			    	/// iterate over rows and cols in dataMatrix
 			    	for(int i=0 ; i<header.size()-leftoffset; i++){
 			    		for(int j=0 ; j<header.size()-leftoffset; j++){
+			    		
 			    			
 			    			String starttransition = header.get(i+leftoffset);
 			    			String endtransition = header.get(j+leftoffset);
 			    			int countcell  =  dataMatrix[i][j];
 			    			
-			    			int startTindex = process.getAOIindex(starttransition, header);
-			    			int endTindex = process.getAOIindex(endtransition, header);
+			    			int startTindex = process.getColumnIindex(starttransition, header);
+			    			int endTindex = process.getColumnIindex(endtransition, header);
 			    			
 //			    			System.out.println(starttransition);
 //			    			System.out.println(endtransition);
@@ -88,8 +99,26 @@ public class processTests extends TestCase {
 			    			
 			    			for(int k=0 ; k<events.size()-1 ; k++){
 		
-			    				ArrayList<String> e1 = events.get(k);
-			    				ArrayList<String> e2 = events.get(k+1);
+			    				int starteventindex = k ;
+			
+			    				while(starteventindex<events.size()-1 && process.areAllcells0(events.get(starteventindex),leftoffset)){
+			    					starteventindex++;
+			    				}
+			    				
+			    				if(starteventindex>=events.size()-1){
+			    					// reached the end
+			    					break ;
+			    				}
+			    				int endeventindex = starteventindex+1 ;
+			    				
+			    				while(endeventindex<events.size()-1 && process.areAllcells0(events.get(endeventindex),leftoffset)){
+			    					endeventindex++;
+			    				}
+			    				
+			    				k = starteventindex ;
+			    				
+			    				ArrayList<String> e1 = events.get(starteventindex);
+			    				ArrayList<String> e2 = events.get(endeventindex);
 			    				
 			    				if(e1.get(startTindex).equals("1") && e1.get(endTindex).equals("0") && e2.get(startTindex).equals("0") && e2.get(endTindex).equals("1")){
 			    					transitionscounter++;
@@ -119,23 +148,33 @@ public class processTests extends TestCase {
 	}
 
 	public void testGenreateDataMatrixForParticipant() throws IOException{
+		String filename = "1.2.tsv";
+		String[] showColumns = new String[] {"AOI[title]Hit","AOI[legend]Hit","AOI[Q1]Hit","AOI[Q2]Hit","AOI[Q3]Hit","AOI[Q4]Hit"};
+	    String ParticipantColumn = "ParticipantName";
+	    
 		
-		String filename = "testfile/1.1test.tsv";
-		int leftoffset = 2;
+		int leftoffset = 1;
 		String participantNameTest = "P01";
 		
 		String transitionstartTest = "AOI[Q2]Hit"; // row
 		String transitionendTest = "AOI[Q3]Hit"; // col
-		Integer countTest = 3;
+		Integer countTest = 2;
 		
 		
 		System.out.println("test testGenreateDataMatrixForParticipant()");
 		
-		HashMap<String,ArrayList<ArrayList<String>>> dataentries = process.readEntries(filename);
-		 ArrayList<String> header = process.readHeader(filename);
+		ArrayList<String> header = process.readHeader(filename,showColumns,ParticipantColumn,false);
+		
+		System.out.println("test testGenreateDataMatrixForParticipant()");
+		
+		ArrayList<String> headerindexes = process.readHeader(filename,showColumns,ParticipantColumn,true);
+		
+		
+		HashMap<String,ArrayList<ArrayList<String>>> dataentries = process.readEntries(filename,showColumns,ParticipantColumn,headerindexes);
+		
 		 
-		 int transitionstartIndex = process.getAOIindex(transitionstartTest, header) - leftoffset;
-		 int transitionendIndex = process.getAOIindex(transitionendTest, header) -leftoffset ;
+		 int transitionstartIndex = process.getColumnIindex(transitionstartTest, header) - leftoffset;
+		 int transitionendIndex = process.getColumnIindex(transitionendTest, header) -leftoffset ;
 
 		HashMap<String, HashMap<String, Integer>> transitionsmap = process.generateTransitionMap(header,dataentries,leftoffset);
 		
@@ -169,18 +208,22 @@ public class processTests extends TestCase {
 		}
 	}
 	
-	public void testGetAOIindex() throws IOException {
+	public void testgetColumnIndex() throws IOException {
 		
-		String filename = "testfile/1.1test.tsv";
-		String AOInameTest = "AOI[graph]Hit";
-		int AOIindexTest = 4 ;
+		String filename = "1.2.tsv";
+		String[] showColumns = new String[] {"AOI[title]Hit","AOI[legend]Hit","AOI[Q1]Hit","AOI[Q2]Hit","AOI[Q3]Hit","AOI[Q4]Hit"};
+	    String ParticipantColumn = "ParticipantName";
+	    
+		String AOInameTest = "AOI[Q1]Hit";
+		int AOIindexTest = 3 ;
 		
+		ArrayList<String> header = process.readHeader(filename,showColumns,ParticipantColumn,false);
 		
 		System.out.println("test testGetAOIindex()");
 		
-		 ArrayList<String> header = process.readHeader(filename);
 		
-		int AOIindex = process.getAOIindex(AOInameTest,header);
+		
+		int AOIindex = process.getColumnIindex(AOInameTest,header);
 		assertEquals(AOIindex,AOIindexTest);
 		
 		
@@ -189,18 +232,23 @@ public class processTests extends TestCase {
 	public void testGenerateTransitionMap() throws IOException {
 		
 
-		String filename = "testfile/1.1test.tsv";
+		String filename = "1.2.tsv";
+		String[] showColumns = new String[] {"AOI[title]Hit","AOI[legend]Hit","AOI[Q1]Hit","AOI[Q2]Hit","AOI[Q3]Hit","AOI[Q4]Hit"};
+	    String ParticipantColumn = "ParticipantName";
+	    
+		
 		String testParticipantExist = "P01";
-		int leftoffset = 2 ;
+		int leftoffset = 1 ;
 		
 		String transitionnameTest = "AOI[Q1]Hit-AOI[Q2]Hit";
 		Integer transitioncountTest = 5 ;
 		
 		System.out.println("test testGenerateTransitionMap()");
 		
-		 ArrayList<String> header = process.readHeader(filename);
+		ArrayList<String> header = process.readHeader(filename,showColumns,ParticipantColumn,false);
+		ArrayList<String> headerindexes = process.readHeader(filename,showColumns,ParticipantColumn,true);
 		 
-		HashMap<String, ArrayList<ArrayList<String>>> Cases = process.readEntries(filename);
+		HashMap<String, ArrayList<ArrayList<String>>> Cases = process.readEntries(filename,showColumns,ParticipantColumn,headerindexes);
 
 		boolean transitionnamefound = false ;
 
@@ -243,19 +291,23 @@ public class processTests extends TestCase {
 
 		System.out.println("test testFindTransitionsFromStatesChanges()");
 
-		String filename = "testfile/1.1test.tsv";
+		String filename = "1.2.tsv";
+		String[] showColumns = new String[] {"AOI[title]Hit","AOI[legend]Hit","AOI[Q1]Hit","AOI[Q2]Hit","AOI[Q3]Hit","AOI[Q4]Hit"};
+	    String ParticipantColumn = "ParticipantName";
+	    
+		
 
-		String event1_id = "17";
-		String event2_id = "18";
+		int event1_id = 21;
 		String testParticipantExist = "P01";
-		int countenabled = 0;
-		int countdisabled = 0;
-		int leftoffset = 2;
+		int countenabled = 1;
+		int countdisabled = 1;
+		int leftoffset = 1;
 
 
-		ArrayList<String> header = process.readHeader(filename);
+		ArrayList<String> header = process.readHeader(filename,showColumns,ParticipantColumn,false);
+		ArrayList<String> headerindexes = process.readHeader(filename,showColumns,ParticipantColumn,true);
 
-		HashMap<String, ArrayList<ArrayList<String>>> Cases = process.readEntries(filename);
+		HashMap<String, ArrayList<ArrayList<String>>> Cases = process.readEntries(filename,showColumns,ParticipantColumn,headerindexes);
 
 		Iterator cases = Cases.entrySet().iterator();
 
@@ -265,18 +317,44 @@ public class processTests extends TestCase {
 			ArrayList<ArrayList<String>> events = (ArrayList<ArrayList<String>>) Case.getValue();
 
 			if (participant.equals(testParticipantExist)) {
+				
 				for (int i = 0; i < events.size() - 1; i++) {
 					//// test case
 					ArrayList<String> e1 = events.get(i);
 					ArrayList<String> e2 = events.get(i + 1);
 
-					if (e1.get(1).equals(event1_id) && e2.get(1).equals(event2_id)) {
+					if (i==event1_id-1) {
 
+//					    System.out.println("e1");
+//					    e1.stream().forEach(System.out::print);
+//					    System.out.println("");
+//					    
+//
+//					    System.out.println("e2");
+//					    e1.stream().forEach(System.out::print);
+//					    System.out.println("");
+					    
 						ArrayList<ArrayList<String>> foundTransition = process.findTransitionsFromStatesChanges(e1, e2,
 								header,leftoffset);
 
 						int disabled = foundTransition.get(0).size();
 						int enabled = foundTransition.get(1).size();
+						
+						//System.err.println(disabled);
+					//	System.err.println(enabled);
+						
+						
+//						System.out.println("disabled");
+//						String[] disabledA = new String[disabled.size()];
+//						disabledA = disabled.toArray(disabledA);
+//						Arrays.stream(disabledA).forEach(num -> System.out.print(num+" "));
+//						System.out.println("");
+//						System.out.println("enabled");
+//						String[] enabledA = new String[enabled.size()];
+//						enabledA = enabled.toArray(enabledA);
+//						Arrays.stream(enabledA).forEach(num -> System.out.print(num+" "));
+//						System.out.println("");
+						
 
 						assertEquals(disabled, countdisabled);
 						assertEquals(enabled, countenabled);
@@ -288,25 +366,35 @@ public class processTests extends TestCase {
 
 		}
 
+		
+		
 	}
 
 	public void testReadHeader() throws IOException {
 
-		String compvaltest = "ParticipantName ";
-		String filename = "testfile/1.1test.tsv";
-		ArrayList<String> header = process.readHeader(filename);
-		//System.err.println(header.get(0));
+		String compvaltest = "ParticipantName";
+		String filename = "1.2.tsv";
+		String[] showColumns = new String[] {"AOI[title]Hit","AOI[legend]Hit","AOI[Q1]Hit","AOI[Q2]Hit","AOI[Q3]Hit","AOI[Q4]Hit"};
+	    String ParticipantColumn = "ParticipantName";
+	    
+		ArrayList<String> header = process.readHeader(filename,showColumns,ParticipantColumn,false);
+			
 		assertEquals(header.get(0).toString().length(), compvaltest.length());
 
 	}
 
 	public void testReadEntries() throws IOException {
-		String filename = "testfile/1.1test.tsv";
+		String filename = "1.2.tsv";
+		String[] showColumns = new String[] {"AOI[title]Hit","AOI[legend]Hit","AOI[Q1]Hit","AOI[Q2]Hit","AOI[Q3]Hit","AOI[Q4]Hit"};
+		 String ParticipantColumn = "ParticipantName";
 		String testParticipantExist = "P01";
+		ArrayList<String> headerindexes = process.readHeader(filename,showColumns,ParticipantColumn,true);
 
+
+		
 		System.out.println("test testReadEntries()");
 
-		HashMap<String, ArrayList<ArrayList<String>>> Cases = process.readEntries(filename);
+		HashMap<String, ArrayList<ArrayList<String>>> Cases = process.readEntries(filename,showColumns,ParticipantColumn,headerindexes);
 
 		Iterator cases = Cases.entrySet().iterator();
 
@@ -317,15 +405,16 @@ public class processTests extends TestCase {
 
 			if (participant.equals(testParticipantExist)) {
 				assertEquals(participant, testParticipantExist);
-
+				
 				for (ArrayList<String> event : events) {
-					// System.out.println("");
+					
+					 System.out.println("");
 
 					for (String col : event) {
-						// System.out.print(col+" ");
+						 System.out.print(col+" ");
 					}
 
-					// System.out.println("");
+					 System.out.println("");
 				}
 
 			}
