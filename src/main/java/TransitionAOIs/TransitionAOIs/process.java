@@ -8,6 +8,7 @@
 
 package TransitionAOIs.TransitionAOIs;
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
@@ -21,11 +22,17 @@ import java.util.Map;
 import java.util.StringTokenizer;
 import java.util.TreeMap;
 
+
+
 public class process {
 
 	static String delimiter = "	";
+	static String[] showColumns = new String[] {"AOI[simulation]Hit","AOI[graph]Hit","AOI[law text]Hit"};
+	static String filename = "logs/dcr/allquestions.tsv";
 	
-	
+	  static String ParticipantColumn = "SegmentName";
+	   static int ParticipantColumnIndex = 2;
+	   
 	public static void main(String[] args) throws IOException {
 		// TODO Auto-generated method stub
 
@@ -37,26 +44,40 @@ public class process {
 		 *
 		 * Update: 
 		 *  the function areAllcells0 is used in order to ignore the events where all AOI's have 0  (except the ones already removed by the offset like the "window" AOI in our case)
-		 *
+	
 		 */
 		
-		String filename = "1.2.Tsv";
-		int leftoffset = 1;
+		
+		
+	
+//		String filename = "logs/sosym/1.2.tsv";
+		int leftoffset = 0;
 		
 		// enter the columns to show in the data matrix
-		String[] showColumns = new String[] {"AOI[title]Hit","AOI[legend]Hit","AOI[Q1]Hit","AOI[Q2]Hit","AOI[Q3]Hit","AOI[Q4]Hit"};
-	    String ParticipantColumn = "ParticipantName";
+	
+	//	String[] showColumns = new String[] {"AOI[title]Hit","AOI[graph]Hit","AOI[legend]Hit"};
+	 
+		//String ParticipantColumn = "ParticipantName";
+	  //  int ParticipantColumnIndex = 0;
+		
 	    
-	    ArrayList<String> headerdata = process.readHeader(filename,showColumns,ParticipantColumn,false);
-	    ArrayList<String> headerdataindexes = process.readHeader(filename,showColumns,ParticipantColumn,true);
-	   
+	    ArrayList<String> headerdata = process.readHeader(filename,showColumns,ParticipantColumn,false,ParticipantColumnIndex);
+	  
+	  
+	 
+	    
+	    ArrayList<String> headerdataindexes = process.readHeader(filename,showColumns,ParticipantColumn,true,ParticipantColumnIndex);
+	    
+	
+	 
 		
 	    
 		ArrayList<Integer> selectedColumnsIndexes = getcolumnsSetsIndexes(showColumns,headerdata);
 		
+		
 	
 		
-		processfile(filename,headerdata,selectedColumnsIndexes,leftoffset,headerdataindexes,showColumns,ParticipantColumn);
+		processfile(filename,headerdata,selectedColumnsIndexes,leftoffset,headerdataindexes,showColumns,ParticipantColumn,ParticipantColumnIndex);
 	
 	}
 	
@@ -109,7 +130,7 @@ public class process {
 	    	  return dataMatrix ;
 	}
 	
-   public static int CalculateSum(Integer[][] dataMatrix, ArrayList<String>  headerdata,ArrayList<Integer>  selectedColumnsIndexes, int leftoffset){
+   public static int CalculateSum(Integer[][] dataMatrix, ArrayList<String>  headerdata,ArrayList<Integer>  selectedColumnsIndexes){
 	   int sum = 0 ;
   
 	 
@@ -118,7 +139,7 @@ public class process {
 			for(int j=0 ; j<selectedColumnsIndexes.size(); j++){
 				
 				
-				sum += dataMatrix[selectedColumnsIndexes.get(i)-leftoffset][selectedColumnsIndexes.get(j)-leftoffset];
+				sum += dataMatrix[selectedColumnsIndexes.get(i)-1][selectedColumnsIndexes.get(j)-1];
 			}
 			}
 		
@@ -133,17 +154,72 @@ public class process {
 			   casesMatrix[i][j] +=  dataMatrix[i][j] ;
 		   }
 	   }
-	   
+	  
 	   return casesMatrix ;
    }
    
-   public static void writeDataMatrix(String participant, workbook wb, Integer[][] dataMatrix,ArrayList<String>  headerdata,ArrayList<Integer>  selectedColumnsIndexes, int leftoffset) throws IOException{
+   
+   public static void writeTransitionsLog(String transitionsLogFilename, String participant, Integer[][] dataMatrix, ArrayList<String>  headerdata,ArrayList<Integer>  selectedColumnsIndexes, boolean init  ) throws IOException {
+	   
+	   StringBuffer stringBuffer = new StringBuffer();
+	   
+	  
+	   
+	   if(init) {
+		   stringBuffer.append("SegementName,");
+			 stringBuffer.append("Sum Transitions,");
+			 
+			 for(int i=0 ; i<dataMatrix.length; i++) {
+					for(int j=0; j<dataMatrix[0].length; j++) {
+						if(i!=j) {
+							 stringBuffer.append(headerdata.get(selectedColumnsIndexes.get(i))+" -> "+headerdata.get(selectedColumnsIndexes.get(j))+",");
+						}
+					}
+				}
+			 
+			 
+			 stringBuffer.append("\n");
+	   }
+	   
+		
+	    int sum = CalculateSum(dataMatrix, headerdata, selectedColumnsIndexes); /// SumTransitions
+		
+			
+		 
+		 stringBuffer.append(participant+",");
+		 stringBuffer.append(sum+",");
+		 
+				for(int i=0 ; i<dataMatrix.length; i++) {
+					for(int j=0; j<dataMatrix[0].length; j++) {
+						if(i!=j) {
+							 stringBuffer.append(dataMatrix[i][j]+",");
+							// System.out.println(headerdata.get(selectedColumnsIndexes.get(i))+" -> "+headerdata.get(selectedColumnsIndexes.get(j))+": "+dataMatrix[i][j]);
+						}
+					}
+				}
+			   
+		 
+		     
+		     stringBuffer.append("\n");
+		     
+				 
+					BufferedWriter bwr = new BufferedWriter(new FileWriter(new File(transitionsLogFilename),true)); // append to file
+					bwr.write(stringBuffer.toString());
+					bwr.flush();
+					bwr.close();
+
+		
+   }
+   
+   public static void writeDataMatrix(String participant, workbook wb, Integer[][] dataMatrix,ArrayList<String>  headerdata,ArrayList<Integer>  selectedColumnsIndexes) throws IOException{
 	   
 		Map<Integer, Object[]> empinfo = new TreeMap<Integer, Object[]>();
 		int countkey = 1;
 
-	
-		int sum = CalculateSum(dataMatrix, headerdata, selectedColumnsIndexes, leftoffset);
+
+		
+		int sum = CalculateSum(dataMatrix, headerdata, selectedColumnsIndexes); /// SumTransitions
+		
 
 		// first line:
 		Object[] newline = new Object[selectedColumnsIndexes.size() + 1];
@@ -165,7 +241,7 @@ public class process {
 			
 			for (int j = 0; j < selectedColumnsIndexes.size(); j++) {
 				newline[countindex++] = dataMatrix[selectedColumnsIndexes.get(i)
-						- leftoffset][selectedColumnsIndexes.get(j) - leftoffset];
+						- 1][selectedColumnsIndexes.get(j) - 1];
 			}
 			
 			empinfo.put(countkey++, newline);
@@ -176,14 +252,21 @@ public class process {
 	}
 	
 	public static void processfile(String filename, ArrayList<String> headerdata,
-			ArrayList<Integer> selectedColumnsIndexes, int leftoffset, ArrayList<String> headerdataindexes,String[] showColumns, String ParticipantColumn ) throws IOException {
+			ArrayList<Integer> selectedColumnsIndexes, int leftoffset, ArrayList<String> headerdataindexes,String[] showColumns, String ParticipantColumn, int ParticipantColumnIndex ) throws IOException {
 
 		  
 		
-		HashMap<String, ArrayList<ArrayList<String>>> dataentries = readEntries(filename,showColumns,ParticipantColumn,headerdataindexes);
+		HashMap<String, ArrayList<ArrayList<String>>> dataentries = readEntries(filename,showColumns,ParticipantColumn,headerdataindexes,ParticipantColumnIndex);
+		
+
+		
 
 		HashMap<String, HashMap<String, Integer>> transitionsmap = generateTransitionMap(headerdata, dataentries,leftoffset);
+		
+		
+	
 
+		 
 		// init casesMatrix (matrix for all participants)
 		Integer[][] casesMatrix = new Integer[headerdata.size() - leftoffset][headerdata.size() - leftoffset];
 		for (int i = 0; i < headerdata.size() - leftoffset; i++) {
@@ -197,18 +280,29 @@ public class process {
 		// init workbook
 		workbook wb = new workbook(filename + "_wb.xlsx");
 
+		int c=0 ;
 		while (cases.hasNext()) {
 			HashMap.Entry Case = (HashMap.Entry) cases.next();
 			String participant = (String) Case.getKey();
 			HashMap<String, Integer> value = (HashMap<String, Integer>) Case.getValue();
 
-			Integer[][] dataMatrix = genreateDataMatrixForParticipant(value, headerdata, leftoffset);
-			casesMatrix = UpdateCasesMatrix(dataMatrix, casesMatrix, headerdata.size() - leftoffset);
-			writeDataMatrix(participant, wb, dataMatrix, headerdata, selectedColumnsIndexes, leftoffset);
+			Integer[][] dataMatrix = genreateDataMatrixForParticipant(value, headerdata, 1);
+			casesMatrix = UpdateCasesMatrix(dataMatrix, casesMatrix, headerdata.size() - 1);
+			writeDataMatrix(participant, wb, dataMatrix, headerdata, selectedColumnsIndexes);
+			writeTransitionsLog(filename+"transitions.csv", participant, dataMatrix, headerdata,selectedColumnsIndexes,c==0 ? true : false); /// write transitions to log
+			c++;
 		}
 
+		for(int i=0; i<casesMatrix.length; i++) {
+			System.out.println("");
+			for(int j=0; j<casesMatrix[0].length; j++) {
+				System.out.print(casesMatrix[i][j]+" ");
+			}
+			
+			
+		}
 		
-		writeDataMatrix("All", wb, casesMatrix, headerdata, selectedColumnsIndexes, leftoffset);
+		writeDataMatrix("All", wb, casesMatrix, headerdata, selectedColumnsIndexes);
 
 	}
 	
@@ -243,32 +337,49 @@ public class process {
 	    	HashMap.Entry pair = (HashMap.Entry)it.next();
 	    	
 	    	String caseId = (String) pair.getKey();
-	    	ArrayList<ArrayList<String>> caseevents = (ArrayList<ArrayList<String>>) pair.getValue();
 	
+	    	ArrayList<ArrayList<String>> caseevents = (ArrayList<ArrayList<String>>) pair.getValue();
+	      	
+
 	    	
 		for(int i=0 ; i<caseevents.size()-1;i++){
 			
 			int starteventindex = i ;
 			
+		
+
 			
-			
-			while(starteventindex<caseevents.size()-1 && areAllcells0(caseevents.get(starteventindex),leftoffset)){
+			while(starteventindex<caseevents.size()-1 && areAllcells0(caseevents.get(starteventindex))){
 				starteventindex++;
+			
 			}
 			
 			if(starteventindex>=caseevents.size()-1){
 				// reached the end
+			
 				break ;
 			}
-			int endeventindex = starteventindex+1 ;
 			
-			while(endeventindex<caseevents.size()-1 && areAllcells0(caseevents.get(endeventindex),leftoffset)){
+			int endeventindex = starteventindex+1 ;
+		
+			
+			while(endeventindex<caseevents.size()-1 && areAllcells0(caseevents.get(endeventindex))){
+			
 				endeventindex++;
 			}
 			
+			
+			
 			i = starteventindex ;
 			
+		
+		
+		
+			
+			
 			ArrayList<ArrayList<String>> startsends = findTransitionsFromStatesChanges(caseevents.get(starteventindex), caseevents.get(endeventindex),headerdata,leftoffset);
+			
+		
 			
 			
 			// add each transition to the hashmap if does not exists yet, or increment the value			
@@ -314,9 +425,11 @@ public class process {
 	
 	
 	
-	public static boolean areAllcells0(ArrayList<String> event, int offset){
+	public static boolean areAllcells0(ArrayList<String> event){
 		
-		for(int i=offset ; i<event.size(); i++){
+		
+		
+		for(int i=1 ; i<event.size(); i++){ // we skip the first as the case id is always stored in index 0 in ArrayList<String> event
 			if(!event.get(i).equals("0")){
 				return false ;
 			}
@@ -328,28 +441,38 @@ public class process {
 	
 		//System.out.println("Case: "+e1.get(0)+"--between "+e1.get(1)+", and "+e2.get(1));
 		
+//		System.out.println(headerdata);
+//		System.out.println(e1);
+//		System.out.println(e2);
+		
 		
 		ArrayList<ArrayList<String>> changed = new ArrayList<ArrayList<String>>();
 		ArrayList<String> disabled = new ArrayList<String>();
 		ArrayList<String> enabled = new ArrayList<String>();
 		
 		
-		for(int i=leftoffset; i<e1.size(); i++){
+		for(int i=1; i<e1.size(); i++){ // we start from 1 as in pos 0, the case is stored
+			
+			
+			
 			if(!e1.get(i).equals(e2.get(i))){
 			
-			
+		
 			
 					if(e2.get(i).equals("1")) {
-					
+
 						enabled.add(headerdata.get(i));
 					}
 					else {
-						
+					
 						disabled.add(headerdata.get(i));
 					}
 
 			}
 		}
+		
+//		System.out.println(enabled);
+//		System.out.println(disabled);
 		
 		changed.add(disabled);
 		changed.add(enabled);
@@ -360,8 +483,8 @@ public class process {
 	
 
 	
-	public static ArrayList<String> readHeader(String filename,String[] showColumns, String participantColumn,boolean index) throws IOException{
-		ArrayList<String> headerdata = new ArrayList<String>();
+	public static ArrayList<String> readHeader(String filename,String[] showColumns, String participantColumn,boolean index, int participantColumnIndex ) throws IOException{
+
 		
 		ArrayList<String> selectedheader = new ArrayList<String>();
 	
@@ -370,14 +493,11 @@ public class process {
 			BufferedReader bufferedReader = new BufferedReader(fileReader);
 			String line =  bufferedReader.readLine() ;
 			
-			StringTokenizer st = new StringTokenizer(line,delimiter);
+			String[] headerdata = line.split(delimiter,-1);
+			
+		
 			
 			int participantnameindex = -1 ;
-			
-			
-			while(st.hasMoreTokens()){
-				headerdata.add(st.nextToken());
-			}
 			
 		
 			
@@ -385,24 +505,22 @@ public class process {
 		
 		
 			
-			
-			
 			if(index){
-				selectedheader.add(0+"");
+				selectedheader.add(participantColumnIndex+""); 
 			}
 			else {
 				selectedheader.add(participantColumn);
 			}
 		
 			
-			for(int i=0; i<headerdata.size(); i++){
+			for(int i=0; i<headerdata.length; i++){
 				
-				if(givenColumns.contains(headerdata.get(i))){
+				if(givenColumns.contains(headerdata[i])){
 					if(index){
 						selectedheader.add(i+"");
 					}
 					else {
-						selectedheader.add(headerdata.get(i));
+						selectedheader.add(headerdata[i]);
 					}
 					
 				}
@@ -418,9 +536,11 @@ public class process {
 	}
 	
 	
-	public static HashMap<String,ArrayList<ArrayList<String>>> readEntries(String filename,String[] showColumns, String participantColumn,ArrayList<String> header) throws IOException{
+	public static HashMap<String,ArrayList<ArrayList<String>>> readEntries(String filename,String[] showColumns, String participantColumn,ArrayList<String> header, int participantColumnIndex ) throws IOException{
 		HashMap<String,ArrayList<ArrayList<String>>> cases = new HashMap<String,ArrayList<ArrayList<String>>>();
 
+	
+		
 			File file = new File(filename);
 			FileReader fileReader = new FileReader(file);
 			BufferedReader bufferedReader = new BufferedReader(fileReader);
@@ -437,27 +557,33 @@ public class process {
 				else {
 					
 					ArrayList<String> entry = new ArrayList<String>();
-					StringTokenizer st = new StringTokenizer(line,delimiter);
+					String[] tempEntries = line.split(delimiter,-1);
 					
 					
-					int k = 0 ; 
-					while(st.hasMoreTokens()){
-		
-						if(k==0){
-							entry.add(st.nextToken()); // we assume that the case id is always index 0
-						}	
-						else if(header.contains(k+"")){
-							entry.add(st.nextToken());
-						}
-						else {
-							st.nextToken();
+					
+				
+					
+					
+					int caseidIndex = participantColumnIndex  ;  
+				
+					entry.add(tempEntries[caseidIndex]);  /// first add the case id
+					
+					
+				
+					
+					for(String h: header){	
+					
+						if(!h.equals(caseidIndex+"")) {
+							entry.add(tempEntries[Integer.valueOf(h)]);
 						}
 						
-						k++;
+						
+					
 					}
 					
-					String caseId = entry.get(0);
 					
+					
+					String caseId = entry.get(0);
 			
 					if(cases.containsKey(caseId)){
 					
@@ -471,10 +597,6 @@ public class process {
 						events.add(entry);
 						cases.put(caseId, events);
 					}
-					
-					
-					
-					
 
 				}
 
